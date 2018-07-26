@@ -372,8 +372,8 @@ class CreationDateTimeField(DateTimeField):
             kwargs['editable'] = True
         if self.blank is not True:
             kwargs['blank'] = False
-        if self.default is not datetime_now:
-            kwargs['default'] = self.default
+        if self.auto_now_add is not False:
+            kwargs['auto_now_add'] = True
         return name, path, args, kwargs
 
 
@@ -399,6 +399,12 @@ class ModificationDateTimeField(CreationDateTimeField):
         field_class = "django.db.models.fields.DateTimeField"
         args, kwargs = introspector(self)
         return (field_class, args, kwargs)
+
+    def deconstruct(self):
+        name, path, args, kwargs = super(ModificationDateTimeField, self).deconstruct()
+        if self.auto_now is not False:
+            kwargs['auto_now'] = True
+        return name, path, args, kwargs
 
 
 class UUIDVersionError(Exception):

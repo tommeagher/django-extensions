@@ -21,6 +21,11 @@ from django.utils.safestring import mark_safe
 from django.utils.translation import activate as activate_language
 
 try:
+    from django.utils.encoding import force_bytes
+except ImportError:
+    from django.utils.encoding import smart_str as force_bytes
+
+try:
     from django.db.models.fields.generic import GenericRelation
     assert GenericRelation
 except ImportError:
@@ -42,15 +47,18 @@ __contributors__ = [
     "Alexander Houben <alexander@houben.ch>",
     "Joern Hees <gitdev@joernhees.de>",
     "Kevin Cherepski <cherepski@gmail.com>",
+    "Jose Tomas Tocino <theom3ga@gmail.com>"
 ]
 
 
 def parse_file_or_list(arg):
     if not arg:
         return []
+    if isinstance(arg, (list, tuple, set)):
+        return arg
     if ',' not in arg and os.path.isfile(arg):
         return [e.strip() for e in open(arg).readlines()]
-    return arg.split(',')
+    return [e.strip() for e in arg.split(',')]
 
 
 def generate_dot(app_labels, **kwargs):
@@ -136,14 +144,14 @@ def generate_dot(app_labels, **kwargs):
                 continue
 
             if verbose_names and appmodel._meta.verbose_name:
-                model['label'] = appmodel._meta.verbose_name.decode("utf8")
+                model['label'] = force_bytes(appmodel._meta.verbose_name)
             else:
                 model['label'] = model['name']
 
             # model attributes
             def add_attributes(field):
                 if verbose_names and field.verbose_name:
-                    label = field.verbose_name.decode("utf8")
+                    label = force_bytes(field.verbose_name)
                     if label.islower():
                         label = label.capitalize()
                 else:
@@ -194,7 +202,7 @@ def generate_dot(app_labels, **kwargs):
             # relations
             def add_relation(field, extras=""):
                 if verbose_names and field.verbose_name:
-                    label = field.verbose_name.decode("utf8")
+                    label = force_bytes(field.verbose_name)
                     if label.islower():
                         label = label.capitalize()
                 else:

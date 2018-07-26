@@ -1,25 +1,27 @@
 import os
+import six
 import sys
 import time
 import traceback
 from optparse import make_option
 
-import six
 from django.conf import settings
-from django.core.management.base import NoArgsCommand
+from django.core.management.base import NoArgsCommand, CommandError
 
+from django_extensions.compat import PY3
 from django_extensions.management.shells import import_objects
 from django_extensions.management.utils import signalcommand
 
 
-class Command(NoArgsCommand):
-    def use_vi_mode():
-        editor = os.environ.get('EDITOR')
-        if not editor:
-            return False
-        editor = os.path.basename(editor)
-        return editor.startswith('vi') or editor.endswith('vim')
+def use_vi_mode():
+    editor = os.environ.get('EDITOR')
+    if not editor:
+        return False
+    editor = os.path.basename(editor)
+    return editor.startswith('vi') or editor.endswith('vim')
 
+
+class Command(NoArgsCommand):
     option_list = NoArgsCommand.option_list + (
         make_option('--plain', action='store_true', dest='plain',
                     help='Tells Django to use plain Python, not BPython nor IPython.'),
@@ -114,20 +116,37 @@ class Command(NoArgsCommand):
         def get_notebook():
             from IPython import release
             try:
-                from IPython.html.notebookapp import NotebookApp
+                from notebook.notebookapp import NotebookApp
             except ImportError:
-                if release.version_info[0] >= 3:
-                    raise
                 try:
-                    from IPython.frontend.html.notebook import notebookapp
-                    NotebookApp = notebookapp.NotebookApp
+                    from IPython.html.notebookapp import NotebookApp
                 except ImportError:
-                    return traceback.format_exc()
+                    if release.version_info[0] >= 3:
+                        raise
+                    try:
+                        from IPython.frontend.html.notebook import notebookapp
+                        NotebookApp = notebookapp.NotebookApp
+                    except ImportError:
+                        return traceback.format_exc()
 
             def install_kernel_spec(app, display_name, ipython_arguments):
                 """install an IPython >= 3.0 kernelspec that loads django extensions"""
                 ksm = app.kernel_spec_manager
-                ks = ksm.get_kernel_spec('python')
+                try_spec_names = getattr(settings, 'NOTEBOOK_KERNEL_SPEC_NAMES', [
+                    'python3' if PY3 else 'python2',
+                    'python',
+                ])
+                if isinstance(try_spec_names, six.string_types):
+                    try_spec_names = [try_spec_names]
+                ks = None
+                for spec_name in try_spec_names:
+                    try:
+                        ks = ksm.get_kernel_spec(spec_name)
+                        break
+                    except:
+                        continue
+                if not ks:
+                    raise CommandError("No notebook (Python) kernel specs found")
                 ks.argv.extend(ipython_arguments)
                 ks.display_name = display_name
 
@@ -313,7 +332,7 @@ class Command(NoArgsCommand):
                     if opt_name in options.keys():
                         app_name = dbs[db]['OPTIONS'][opt_name]
                     else:
-                        dbs[db]['OPTIONS'].update({opt_name: default_app_name})
+                        dbs[db].setdefault('OPTIONS', {}).update({opt_name: default_app_name})
                         app_name = default_app_name
 
             return app_name
