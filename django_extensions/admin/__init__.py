@@ -61,16 +61,10 @@ class ForeignKeyAutocompleteAdmin(ModelAdmin):
                 return self.admin_site.admin_view(view)(*args, **kwargs)
             return update_wrapper(wrapper, view)
 
-        # model._meta.module_name is deprecated in django version 1.7 and removed in django version 1.8.
-        # It is replaced by model._meta.model_name
-        if django.VERSION < (1, 7):
-            info = self.model._meta.app_label, self.model._meta.module_name
-        else:
-            info = self.model._meta.app_label, self.model._meta.model_name
-
-        urlpatterns = patterns('', url(r'foreignkey_autocomplete/$', wrap(self.foreignkey_autocomplete), name='%s_%s_autocomplete' % info))
-        urlpatterns += super(ForeignKeyAutocompleteAdmin, self).get_urls()
-        return urlpatterns
+        return [
+            url(r'foreignkey_autocomplete/$', wrap(self.foreignkey_autocomplete),
+                name='%s_%s_autocomplete' % (self.model._meta.app_label, self.model._meta.model_name))
+        ] + super(ForeignKeyAutocompleteAdminMixin, self).get_urls()
 
     def foreignkey_autocomplete(self, request):
         """
