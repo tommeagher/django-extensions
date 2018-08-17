@@ -64,7 +64,7 @@ class ForeignKeyAutocompleteAdmin(ModelAdmin):
         return [
             url(r'foreignkey_autocomplete/$', wrap(self.foreignkey_autocomplete),
                 name='%s_%s_autocomplete' % (self.model._meta.app_label, self.model._meta.model_name))
-        ] + super(ForeignKeyAutocompleteAdminMixin, self).get_urls()
+        ] + super(ForeignKeyAutocompleteAdmin, self).get_urls()
 
     def foreignkey_autocomplete(self, request):
         """
